@@ -263,53 +263,87 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     [self connectWithSuccessBlock:nil errorBlock:nil];
 }
 
++ (void)connectWithConfiguration:(PNConfiguration *)configuration {
+
+    [self connectWithConfiguration:configuration successBlock:nil errorBlock:nil];
+}
+
++ (void)connectWithConfiguration:(PNConfiguration *)configuration andDelegate:(id<PNDelegate>)delegate {
+
+    [self connectWithConfiguration:configuration delegate:delegate successBlock:nil errorBlock:nil];
+}
+
 + (void)connectWithSuccessBlock:(PNClientConnectionSuccessBlock)success
                      errorBlock:(PNClientConnectionFailureBlock)failure {
-    
+
+    [self connectWithConfiguration:[self sharedInstance].configuration
+                      successBlock:success
+                        errorBlock:failure];
+}
+
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                     errorBlock:(PNClientConnectionFailureBlock)failure {
+
+    [self connectWithConfiguration:configuration
+                          delegate:[self sharedInstance].delegate
+                      successBlock:success
+                        errorBlock:failure];
+}
+
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                        delegate:(id<PNDelegate>)delegate
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                      errorBlock:(PNClientConnectionFailureBlock)failure {
+
     BOOL shouldAddStateObservation = NO;
-    
+
     // Check whether instance already connected or not
     if ([self sharedInstance].state == PNPubNubClientStateConnected ||
         [self sharedInstance].state == PNPubNubClientStateConnecting) {
 
         PNError *connectionError = [PNError errorWithCode:kPNClientTriedConnectWhileConnectedError];
         [[self sharedInstance] notifyDelegateAboutError:connectionError];
-        
+
         if (failure) {
 
             failure(connectionError);
         }
     }
     else {
-        
+
+        [self setDelegate:delegate];
+        [self setConfiguration:configuration];
+
+
         // Check whether client configuration was provided
         // or not
         if ([self sharedInstance].configuration == nil) {
 
             PNError *connectionError = [PNError errorWithCode:kPNClientConfigurationError];
             [[self sharedInstance] notifyDelegateAboutError:connectionError];
-            
-            
+
+
             if(failure) {
-                
+
                 failure(connectionError);
             }
         }
         else {
-            
+
             // Check whether user identifier was provided by
             // user or not
             if(![self sharedInstance].isUserProvidedClientIdentifier) {
-                
+
                 // Change user identifier before connect to the
                 // PubNub services
                 [self sharedInstance].clientIdentifier = PNUniqueIdentifier();
             }
-            
-            
+
+
             [self sharedInstance].connectOnServiceReachabilityCheck = NO;
-            
-            
+
+
             // Check whether services are available or not
             if ([[self sharedInstance].reachability isServiceReachabilityChecked]) {
 
@@ -322,7 +356,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
                     // establish connection with remote PubNub origin
                     // (notify if delegate implements this method)
                     if ([[self sharedInstance].delegate respondsToSelector:@selector(pubnubClient:willConnectToOrigin:)]) {
-                        
+
                         [[self sharedInstance].delegate performSelector:@selector(pubnubClient:willConnectToOrigin:)
                                                              withObject:[self sharedInstance]
                                                              withObject:[self sharedInstance].configuration.origin];
@@ -338,7 +372,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
                         [self sharedInstance].state == PNPubNubClientStateDisconnected) {
 
                         [self sharedInstance].state = PNPubNubClientStateConnecting;
-                        
+
                         // Initialize communication channels
                         [self sharedInstance].messagingChannel = [PNMessagingChannel messageChannelWithDelegate:[self sharedInstance]];
                         [self sharedInstance].messagingChannel.messagingDelegate = [self sharedInstance];
@@ -348,27 +382,27 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
                     else {
 
                         [self sharedInstance].state = PNPubNubClientStateConnecting;
-                        
-                        
+
+
                         // Reuse existing communication channels and reconnect
                         // them to remote origin server
                         [[self sharedInstance].messagingChannel connect];
                         [[self sharedInstance].serviceChannel connect];
                     }
-                    
+
                     shouldAddStateObservation = YES;
                 }
                 else {
-                    
+
                     // Mark that client should try to connect when network will be available
                     // again
                     [self sharedInstance].connectOnServiceReachabilityCheck = YES;
-                    
+
                     [[self sharedInstance] handleConnectionErrorOnNetworkFailure];
-                    
-                    
+
+
                     if(failure) {
-                        
+
                         failure([PNError errorWithCode:kPNClientConnectionFailedOnInternetFailureError]);
                     }
                 }
@@ -377,9 +411,9 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
             // (user still not configured client or just not enough time to check passed
             // since client configuration)
             else {
-                
+
                 [self sharedInstance].connectOnServiceReachabilityCheck = YES;
-                
+
                 shouldAddStateObservation = YES;
             }
         }
@@ -390,7 +424,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
 
 
     if(shouldAddStateObservation) {
-        
+
         // Subscribe and wait for client connection state change notification
         [[self sharedInstance] setClientConnectionObservationWithSuccessBlock:success failureBlock:failure];
     }

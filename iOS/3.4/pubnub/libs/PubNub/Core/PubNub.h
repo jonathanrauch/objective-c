@@ -42,6 +42,8 @@
  * communication with PubNub services).
  */
 + (void)connect;
++ (void)connectWithConfiguration:(PNConfiguration *)configuration;
++ (void)connectWithConfiguration:(PNConfiguration *)configuration andDelegate:(id<PNDelegate>)delegate;
 
 /**
  * Perform same action as +connect but in addition provides
@@ -49,6 +51,13 @@
  */
 + (void)connectWithSuccessBlock:(PNClientConnectionSuccessBlock)success
                      errorBlock:(PNClientConnectionFailureBlock)failure;
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                     errorBlock:(PNClientConnectionFailureBlock)failure;
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                        delegate:(id<PNDelegate>)delegate
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                      errorBlock:(PNClientConnectionFailureBlock)failure;
 
 /**
  * Will disconnect from all channels w/o sending leave
